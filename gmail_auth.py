@@ -13,24 +13,22 @@ CREDENTIALS_FILE = 'credentials.json'
 def get_gmail_service():
     creds = None
 
-    # Load existing token
+    # 1️⃣ Load existing token
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, 'rb') as token:
             creds = pickle.load(token)
 
-    # If credentials are invalid or expired, refresh or re-login
+    # 2️⃣ If token exists but expired → refresh
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+
+    # 3️⃣ If token DOES NOT exist → STOP (no browser on Railway)
     if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                CREDENTIALS_FILE, SCOPES
-            )
-            creds = flow.run_local_server(port=0)
+        raise Exception(
+            "Gmail token not found or invalid. "
+            "Authorize locally first by running worker.py on your laptop."
+        )
 
-        # Save token for next run
-        with open(TOKEN_FILE, 'wb') as token:
-            pickle.dump(creds, token)
-
+    # 4️⃣ Build Gmail service
     service = build('gmail', 'v1', credentials=creds)
     return service
